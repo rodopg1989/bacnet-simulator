@@ -9,22 +9,21 @@ from bacpypes.object import (
 )
 from bacpypes.core import run
 
-
 # ----- 1) Detectar IP automáticamente -----
 def get_local_ip():
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))  # solo se usa para calcular la IP local
+        s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
         s.close()
         return ip
     except:
-        return "127.0.0.1"  # fallback seguro
+        return "127.0.0.1"
 
 local_ip = get_local_ip()
 print("IP detectada automáticamente:", local_ip)
 
-# ----- CONFIG DEL DISPOSITIVO -----
+# ----- 2) Configurar el dispositivo BACnet -----
 device = LocalDeviceObject(
     objectName="PythonSimDevice",
     objectIdentifier=1234,
@@ -33,39 +32,46 @@ device = LocalDeviceObject(
     vendorIdentifier=999
 )
 
-# ----- OBJETOS BACNET -----
-ai1 = AnalogInputObject(
-    objectIdentifier=("analogInput", 1),
-    objectName="TempSensor1",
-    presentValue=22.5,
-)
+# ----- 3) Crear objetos BACnet simulados -----
+# Sensores AI
+temperature = AnalogInputObject(objectIdentifier=("analogInput",1),
+                                objectName="TemperatureSensor",
+                                presentValue=22.5)
+humidity = AnalogInputObject(objectIdentifier=("analogInput",2),
+                             objectName="HumiditySensor",
+                             presentValue=55.0)
 
-av1 = AnalogValueObject(
-    objectIdentifier=("analogValue", 1),
-    objectName="Setpoint1",
-    presentValue=21.0,
-)
+# Salidas AO
+valve = AnalogOutputObject(objectIdentifier=("analogOutput",1),
+                           objectName="ValvePosition",
+                           presentValue=50.0)
+fan_speed = AnalogOutputObject(objectIdentifier=("analogOutput",2),
+                               objectName="FanSpeed",
+                               presentValue=75.0)
 
-ao1 = AnalogOutputObject(
-    objectIdentifier=("analogOutput", 1),
-    objectName="ValvePosition",
-    presentValue=50.0,
-)
+# Setpoints AV
+temp_setpoint = AnalogValueObject(objectIdentifier=("analogValue",1),
+                                  objectName="TempSetpoint",
+                                  presentValue=21.0)
+humidity_setpoint = AnalogValueObject(objectIdentifier=("analogValue",2),
+                                      objectName="HumiditySetpoint",
+                                      presentValue=50.0)
 
-bv1 = BinaryValueObject(
-    objectIdentifier=("binaryValue", 1),
-    objectName="PumpStatus",
-    presentValue=1,
-)
+# Estados BV
+pump = BinaryValueObject(objectIdentifier=("binaryValue",1),
+                         objectName="PumpStatus",
+                         presentValue=1)  # 1=ON, 0=OFF
+valve_status = BinaryValueObject(objectIdentifier=("binaryValue",2),
+                                 objectName="ValveStatus",
+                                 presentValue=0)
 
-# ----- INICIAR BACNET/IP con IP automática -----
+# ----- 4) Inicializar BACnet/IP -----
 app = BIPSimpleApplication(device, f"{local_ip}/24")
 
-# Registrar objetos
-app.add_object(ai1)
-app.add_object(av1)
-app.add_object(ao1)
-app.add_object(bv1)
+# ----- 5) Registrar objetos -----
+for obj in [temperature, humidity, valve, fan_speed,
+            temp_setpoint, humidity_setpoint, pump, valve_status]:
+    app.add_object(obj)
 
-print("Servidor BACnet Python corriendo…")
+print("Servidor BACnet extendido corriendo...")
 run()
